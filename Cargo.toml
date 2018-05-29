@@ -1,0 +1,6 @@
+[package]
+name = "mybase"
+version = "0.1.0"
+authors = ["leijie"]
+
+[dependencies]
