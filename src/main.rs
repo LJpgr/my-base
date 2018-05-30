@@ -15,19 +15,14 @@ impl InputBuffer {
     }
     fn read_input(&mut self) {
         let mut buffer = String::new();
-        match io::stdin().read_line(&mut buffer) {
-            Ok(n) => {
-                self.buffer_length = n - 1;
-                if let Some(_) = buffer.pop() {
-                    if buffer.len() != 0 {
-                        self.buffer = Some(Box::new(buffer));
-                    }
-                }
-            }
-            Err(e) => {
-                println!("Could not read from stdin.{}", e);
-                process::exit(1);
-            }
+        io::stdin().read_line(&mut buffer).unwrap_or_else(|e| {
+            println!("Could not read from stdin.msg:{}", e);
+            process::exit(1);
+        });
+        let buffer = buffer.replace("\r\n", "").replace("\n", "");
+        if buffer.len() > 0 {
+            self.buffer_length = buffer.len();
+            self.buffer = Some(Box::new(buffer));
         }
     }
 }
@@ -40,7 +35,7 @@ fn main() {
     loop {
         print_prompt();
         input_buffer.read_input();
-        if let Some(-) = input_buffer.buffer {
+        if let Some(_) = input_buffer.buffer {
             process::exit(0)
         } else {
             println!("Unrecognized command '{:?}'.", input_buffer.buffer)
