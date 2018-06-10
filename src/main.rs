@@ -5,6 +5,21 @@ struct InputBuffer {
     buffer_length: usize,
     input_length: usize,
 }
+struct Statement {
+    stype: StatementType,
+}
+enum MetaCommandResult {
+    MetaCommandSuccess,
+    MetaCommandUnrecognizedCommand,
+}
+enum PrepareResult {
+    PrepareSuccess,
+    PrepareUnrecognizedStatement,
+}
+enum StatementType {
+    StatementInsert,
+    StatementSelect,
+}
 impl InputBuffer {
     fn new_input_buffer() -> Box<InputBuffer> {
         Box::new(InputBuffer {
@@ -25,20 +40,69 @@ impl InputBuffer {
             self.buffer = Some(Box::new(buffer));
         }
     }
+    fn do_meta_command(&self) -> MetaCommandResult {
+        if let Some(ref s) = self.buffer {
+            if s.as_str() == ".exit" {
+                process::exit(0);
+            } else {
+                return MetaCommandResult::MetaCommandUnrecognizedCommand;
+            }
+        } else {
+            return MetaCommandResult::MetaCommandUnrecognizedCommand;
+        }
+    }
+    fn prepare_statement(&self, statement: &mut Statement) -> PrepareResult {
+        let ref buffer = self.buffer.clone().unwrap();
+        if buffer.starts_with("insert") {
+            statement.stype = StatementType::StatementInsert;
+            return PrepareResult::PrepareSuccess;
+        }
+        if buffer.starts_with("select") {
+            statement.stype = StatementType::StatementSelect;
+            return PrepareResult::PrepareSuccess;
+        }
+        return PrepareResult::PrepareUnrecognizedStatement;
+    }
+    fn excute_statement(&self, statement: &Statement) {
+        match statement.stype {
+            StatementType::StatementSelect => println!("This is where we would do an select."),
+            StatementType::StatementInsert => println!("This is where we would do a insert."),
+        }
+    }
 }
 fn print_prompt() {
     print!("db > ");
     io::stdout().flush().unwrap();
 }
 fn main() {
-    let mut input_buffer = InputBuffer::new_input_buffer();
+    let ref mut input_buffer = InputBuffer::new_input_buffer();
     loop {
         print_prompt();
         input_buffer.read_input();
-        if let Some(_) = input_buffer.buffer {
-            process::exit(0)
-        } else {
-            println!("Unrecognized command '{:?}'.", input_buffer.buffer)
+        if let Some(ref s) = input_buffer.buffer {
+            if s.starts_with(".") {
+                match input_buffer.do_meta_command() {
+                    MetaCommandResult::MetaCommandSuccess => {
+                        continue;
+                    }
+                    MetaCommandResult::MetaCommandUnrecognizedCommand => {
+                        println!("Unrecognized command '{}'", s);
+                        continue;
+                    }
+                }
+            }
         }
+        let mut statement: Statement = Statement {
+            stype: StatementType::StatementInsert,
+        };
+        match input_buffer.prepare_statement(&mut statement) {
+            PrepareResult::PrepareSuccess => {}
+            PrepareResult::PrepareUnrecognizedStatement => {
+                let mut buffer = input_buffer.buffer.clone();
+                println!("Unrecognized keyword at start of '{}'", buffer.unwrap())
+            }
+        }
+        input_buffer.excute_statement(&statement);
+        println!("Executed.");
     }
 }
