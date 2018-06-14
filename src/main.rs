@@ -8,12 +8,18 @@ struct InputBuffer {
 struct Statement {
     stype: StatementType,
 }
+struct Row {
+    id: u32,
+    username: String,
+    email: String,
+}
 enum MetaCommandResult {
     MetaCommandSuccess,
     MetaCommandUnrecognizedCommand,
 }
 enum PrepareResult {
     PrepareSuccess,
+    PrepareSyntaxError,
     PrepareUnrecognizedStatement,
 }
 enum StatementType {
@@ -55,6 +61,10 @@ impl InputBuffer {
         let ref buffer = self.buffer.clone().unwrap();
         if buffer.starts_with("insert") {
             statement.stype = StatementType::StatementInsert;
+            let args_assigned: Vec<_> = buffer.split(' ').collect();
+            if args_assigned.len() < 4 {
+                return PrepareResult::PrepareSyntaxError;
+            }
             return PrepareResult::PrepareSuccess;
         }
         if buffer.starts_with("select") {
@@ -100,6 +110,10 @@ fn main() {
             PrepareResult::PrepareUnrecognizedStatement => {
                 let mut buffer = input_buffer.buffer.clone();
                 println!("Unrecognized keyword at start of '{}'", buffer.unwrap())
+            }
+            PrepareResult::PrepareSyntaxError => {
+                let mut buffer = input_buffer.buffer.clone();
+                println!("Syntax Error: '{}'", buffer.unwrap())
             }
         }
         input_buffer.excute_statement(&statement);
