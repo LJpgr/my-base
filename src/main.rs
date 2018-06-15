@@ -1,5 +1,10 @@
+extern crate regex;
+use regex::Regex;
 use std::io::{self, Write};
 use std::process;
+
+const COLUMN_NAME_SIZE: usize = 32;
+const COLUMN_EMAIL_SIZE: usize = 255;
 struct InputBuffer {
     buffer: Option<Box<String>>,
     buffer_length: usize,
@@ -7,11 +12,12 @@ struct InputBuffer {
 }
 struct Statement {
     stype: StatementType,
+    row_to_insert: Option<Row>,
 }
 struct Row {
     id: u32,
-    username: String,
-    email: String,
+    username: [char; COLUMN_NAME_SIZE],
+    email: [char; COLUMN_EMAIL_SIZE],
 }
 enum MetaCommandResult {
     MetaCommandSuccess,
@@ -25,6 +31,7 @@ enum PrepareResult {
 enum StatementType {
     StatementInsert,
     StatementSelect,
+    StatementUnknown,
 }
 impl InputBuffer {
     fn new_input_buffer() -> Box<InputBuffer> {
@@ -60,14 +67,20 @@ impl InputBuffer {
     fn prepare_statement(&self, statement: &mut Statement) -> PrepareResult {
         let ref buffer = self.buffer.clone().unwrap();
         if buffer.starts_with("insert") {
-            statement.stype = StatementType::StatementInsert;
-            let args_assigned: Vec<_> = buffer.split(' ').collect();
-            if args_assigned.len() < 4 {
+            let reg = Regex::new(r"^insert \d \S \S$").unwrap();
+            if !reg.is_match(buffer) {
+                statement.stype = StatementType::StatementUnknown;
                 return PrepareResult::PrepareSyntaxError;
             }
+            statement.stype = StatementType::StatementInsert;
             return PrepareResult::PrepareSuccess;
         }
         if buffer.starts_with("select") {
+            let reg = Regex::new(r"^select \d \S \S$").unwrap();
+            if !reg.is_match(buffer) {
+                statement.stype = StatementType::StatementUnknown;
+                return PrepareResult::PrepareSyntaxError;
+            }
             statement.stype = StatementType::StatementSelect;
             return PrepareResult::PrepareSuccess;
         }
@@ -77,6 +90,7 @@ impl InputBuffer {
         match statement.stype {
             StatementType::StatementSelect => println!("This is where we would do an select."),
             StatementType::StatementInsert => println!("This is where we would do a insert."),
+            StatementType::StatementUnknown => println!("This is unknown command."),
         }
     }
 }
@@ -103,7 +117,8 @@ fn main() {
             }
         }
         let mut statement: Statement = Statement {
-            stype: StatementType::StatementInsert,
+            stype: StatementType::StatementUnknown,
+            row_to_insert: None,
         };
         match input_buffer.prepare_statement(&mut statement) {
             PrepareResult::PrepareSuccess => {}
